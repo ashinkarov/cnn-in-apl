@@ -41,7 +41,7 @@ conv←{a←⍵ ⋄ s←1+(⍴a)-⍴⍺ ⋄ ∧/(⍴⍺)=⍴a : s⍴+/,⍺×a �
 ⍝ Here is a version without the enclose/disclose and it got slower
 ⍝ and uglier.  Not sure whether there is an easy fix.
 ⍝
-⍝ conv ← { w←⍺ ⋄ a←⍵ ⋄ s ← 1+(⍴a)-⍴w ⋄ +⌿((×/⍴w),s)⍴w{⍺×⍵}⍤(0,(⍴⍴w))⊣{s↑⍵↓a}⍤1⊣⊃⍳⍴w }
+⍝ conv ← { w←⍺ ⋄ a←⍵ ⋄ s ← 1+(⍴a)-⍴w ⋄ +⌿((×/⍴w),s)⍴w{⍺×⍵}⍤(0,(⍴⍴w))⊢{s↑⍵↓a}⍤1⊢⊃⍳⍴w }
 ⍝
 ⍝ Here we have an alternative version of the conv that uses the ⌺ operator
 ⍝ However, it is noticeably slower in our application, as we have to remove
@@ -55,14 +55,14 @@ conv←{a←⍵ ⋄ s←1+(⍴a)-⍴⍺ ⋄ ∧/(⍴⍺)=⍴a : s⍴+/,⍺×a �
 ⍝ Here we assume that `bias` has the same dimensionality as the "outer" level
 ⍝ of `ws` and it contains scalars.  (If not this can be easily adapted).
 ⍝
-⍝ multiconv← {(a ws bias)←⍵ ⋄ ⊃bias+{⊂⍵ conv a}⍤(⍴⍴a)⊣ws}
-multiconv← {(a ws bias)←⍵ ⋄ bias{⍺ + ⍵ conv a}⍤(0,(⍴⍴a))⊣ws}
+⍝ multiconv← {(a ws bias)←⍵ ⋄ ⊃bias+{⊂⍵ conv a}⍤(⍴⍴a)⊢ws}
+multiconv← {(a ws bias)←⍵ ⋄ bias{⍺ + ⍵ conv a}⍤(0,(⍴⍴a))⊢ws}
 
 
 ⍝ Here we can pre-optimise conv for FC layer, but it doesn't really help
 ⍝
 ⍝ fcconv←{s ← 1+(⍴⍵)-⍴⍺ ⋄ s⍴+/,⍺×⍵ }
-⍝ fclayer← {(a ws bias)←⍵ ⋄ bias{⍺ + ⍵ fcconv a}⍤(0,(⍴⍴a))⊣ws}
+⍝ fclayer← {(a ws bias)←⍵ ⋄ bias{⍺ + ⍵ fcconv a}⍤(0,(⍴⍴a))⊢ws}
 
 
 ⍝ Simply the sum
@@ -92,17 +92,17 @@ backlogistic ← {⍺×⍵×1-⍵}
 ⍝ over the last (dim f) dimensions of a.  Therefore we use rank operator
 ⍝ twice.  Other than that we simply reshape the array into (|a|/f)++f
 ⍝ and apply avg.
-⍝ avgp ← {a ← ⍵ ⋄ {(i j)←2×⍵ ⋄ avg ⊣ ((i (i+1))(j (j+1))) ⌷ a} ¨⍳(÷∘2⍴a)}
-avgpool ← {(x y)←⍴⍵ ⋄ avg⍤2⊣(x÷2)(y÷2)2 2⍴⍉⍤2⊣(x÷2)2 y⍴⍵}⍤2
+⍝ avgp ← {a ← ⍵ ⋄ {(i j)←2×⍵ ⋄ avg ⊢ ((i (i+1))(j (j+1))) ⌷ a} ¨⍳(÷∘2⍴a)}
+avgpool ← {(x y)←⍴⍵ ⋄ avg⍤2⊢(x÷2)(y÷2)2 2⍴⍉⍤2⊢(x÷2)2 y⍴⍵}⍤2
 
 ⍝ This is a slower version, but it is very concise.
-⍝ avgpool1←{÷∘4{+/,⍵}⌺(2 2⍴2)⍤2⊣⍵}
+⍝ avgpool1←{÷∘4{+/,⍵}⌺(2 2⍴2)⍤2⊢⍵}
 
 
 
 ⍝ For every element in `a` compute an array of shape `f` where all the
 ⍝ elements are the current element of `a` divided (prod f).
-⍝ backavgpool ← {(a f) ← ⍵ ⋄ ⊃⍪/{⊂⍵}⍤2⊣⊃,/{f⍴⍵÷×/f}¨a }
+⍝ backavgpool ← {(a f) ← ⍵ ⋄ ⊃⍪/{⊂⍵}⍤2⊢⊃,/{f⍴⍵÷×/f}¨a }
 
 ⍝ We are tempted to specialise average pool for the shape 2 2, as we
 ⍝ don't use anything else and the expression gets really nice
@@ -142,9 +142,9 @@ GetInt←{f←Ubyte ⍵ ⋄ 256⊥⍤1⊢(((⍴f)÷4),4)⍴f}
 ⍝ backmulticonv is just a ranked application of backin, backw and backbias.
 ∇ backmulticonv ← {
   (d_out weights in bias) ← ⍵
-  d_in ← +⌿d_out {backin ⍺ ⍵ in} ⍤((⍴⍴in), (⍴⍴in)) ⊣ weights
-  d_w ← {⍵ conv in} ⍤(⍴⍴in) ⊣ d_out
-  d_bias ← backbias ⍤(⍴⍴in) ⊣ d_out
+  d_in ← +⌿d_out {backin ⍺ ⍵ in} ⍤((⍴⍴in), (⍴⍴in)) ⊢ weights
+  d_w ← {⍵ conv in} ⍤(⍴⍴in) ⊢ d_out
+  d_bias ← backbias ⍤(⍴⍴in) ⊢ d_out
   d_in d_w d_bias
 }
 ∇
@@ -187,7 +187,7 @@ GetInt←{f←Ubyte ⍵ ⋄ 256⊥⍤1⊢(((⍴f)÷4),4)⍴f}
 
     (i ≥ trsz) : (e÷trsz) k1 b1 k2 b2 fc b
     img ← i ⌷ imgs
-    target ← convlab ⊣ i ⌷ labs
+    target ← convlab ⊢ i ⌷ labs
     (d_k1 d_b1 d_k2 d_b2 d_fc d_b err) ← trainzhang (img target k1 b1 k2 b2 fc b)
 
     k1←k1-rate×d_k1
@@ -204,7 +204,7 @@ GetInt←{f←Ubyte ⍵ ⋄ 256⊥⍤1⊢(((⍴f)÷4),4)⍴f}
 
 ∇ main ← {
   epochs    ← 10
-  ⍝ batchsize ← 100
+  batchsize ← 1
   trainings ← 1000
   tests     ← 10000
   rate      ← 0.05
@@ -228,9 +228,9 @@ GetInt←{f←Ubyte ⍵ ⋄ 256⊥⍤1⊢(((⍴f)÷4),4)⍴f}
     ⎕←'The time taken for training is ',(⍕⎕AI-t)
     ⎕←'The average error after training is ',(⍕e)
     k1 b1 k2 b2 fc b
-  }⍣epochs ⊣ (k1 b1 k2 b2 fc b)
+  }⍣epochs ⊢ (k1 b1 k2 b2 fc b)
 
-  t←⎕AI ⋄ correct←+/telabs = teimgs testzhang⍤2 ⊣(k1 b1 k2 b2 fc b)
+  t←⎕AI ⋄ correct←+/telabs = teimgs testzhang⍤2 ⊢(k1 b1 k2 b2 fc b)
   ⎕←'The time taken for recognition is ',(⍕⎕AI-t)
   ⎕←(⍕correct),' images out of ',(⍕tests),' recognised correctly'
 }
